@@ -85,6 +85,7 @@ impl Clone for NameType {
   }
 }
 
+
 impl Encodable for NameType {
   fn encode<E: Encoder>(& self, e: &mut E)->Result<(), E::Error> {
     let NameType(id) = * self;

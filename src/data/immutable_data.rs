@@ -21,9 +21,9 @@ extern crate cbor;
 
 use cbor::CborTagEncode;
 use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
-use helper::*;
 use common::NameType;
 use traits::RoutingTrait;
+use sodiumoxide::crypto;
 
 /// ImmutableData
 ///
@@ -43,12 +43,9 @@ pub struct ImmutableData {
 }
 
 impl RoutingTrait for ImmutableData {
-	fn get_name(&self)->&NameType {
-		&self.name
-	}
-
-	fn get_owner(&self)->&Vec<u8> {
-		&self.value
+	fn get_name(&self) -> NameType {
+        let digest = crypto::hash::sha512::hash(&self.name.0);
+        NameType(digest.0)
 	}
 }
 
@@ -84,17 +81,25 @@ impl Decodable for ImmutableData {
 		Ok(ImmutableData::new(name, value))
 	}
 }
+#[cfg(test)]
+mod test {
+use helper::*;
+use super::*;
+use cbor::{ Encoder, Decoder};
+use rustc_serialize::{Decodable, Encodable};
+use common::NameType;
 
 #[test]
 fn serialisation_immutable_data() {
 	let obj_before = ImmutableData::new(NameType([3u8; 64]), vec![99u8; 10]);
-	let mut e = cbor::Encoder::from_memory();
+	let mut e = Encoder::from_memory();
 	e.encode(&[&obj_before]).unwrap();
 
-	let mut d = cbor::Decoder::from_bytes(e.as_bytes());
+	let mut d = Decoder::from_bytes(e.as_bytes());
 	let obj_after: ImmutableData = d.decode().next().unwrap().unwrap();
 	let id_before = obj_before.get_name().get_id();
 	let id_after = obj_after.get_name().get_id();
-	assert!(compare_arr_u8_64(&id_before, &id_after));
+	assert!(compare_u8_array(&id_before, &id_after));
 	assert_eq!(obj_before.get_value(), obj_after.get_value());
+}
 }

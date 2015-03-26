@@ -25,6 +25,7 @@ use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use sodiumoxide::crypto;
 use helper::*;
 use common::NameType;
+use traits::RoutingTrait;
 
 /// PublicMpid
 ///
@@ -66,6 +67,30 @@ mpid_signature: crypto::sign::Signature,
 owner: NameType,
 signature: crypto::sign::Signature,
 name: NameType
+}
+
+impl RoutingTrait for PublicMpid {
+    fn get_name(&self) -> NameType {
+        let sign_arr = &(&self.public_keys.0).0;
+        let asym_arr = &(&self.public_keys.1).0;
+
+        let mut arr_combined = [0u8; 64 * 2];
+
+        for i in 0..sign_arr.len() {
+            arr_combined[i] = sign_arr[i];
+        }
+        for i in 0..asym_arr.len() {
+            arr_combined[64 + i] = asym_arr[i];
+        }
+
+        let digest = crypto::hash::sha512::hash(&arr_combined);
+
+        NameType(digest.0)
+    }
+
+    fn get_owner(&self) -> Option<Vec<u8>> {
+        Some(array_as_vector(&self.owner.0))
+    }
 }
 
 impl PublicMpid {
@@ -153,10 +178,10 @@ fn serialisation_public_mpid() {
 	let (&NameType(name_before), &NameType(name_after)) = (obj_before.get_name(), obj_after.get_name());
 	let (&NameType(owner_before), &NameType(owner_after)) = (obj_after.get_owner(), obj_after.get_owner())                                                               ;
 
-	assert!(compare_arr_u8_64(&name_before, &name_after));
-	assert!(compare_arr_u8_64(&owner_before, &owner_after));
+	assert!(compare_u8_array(&name_before, &name_after));
+	assert!(compare_u8_array(&owner_before, &owner_after));
 	assert_eq!(pub_sign_arr_before, pub_sign_arr_after);
 	assert_eq!(pub_asym_arr_before, pub_asym_arr_after);
-	assert!(compare_arr_u8_64(&mpid_signature_before, &mpid_signature_after))                                                                                    ;
-	assert!(compare_arr_u8_64(&signature_before, &signature_after));
+	assert!(compare_u8_array(&mpid_signature_before, &mpid_signature_after))                                                                                    ;
+	assert!(compare_u8_array(&signature_before, &signature_after));
 }

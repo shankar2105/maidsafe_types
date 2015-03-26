@@ -24,6 +24,7 @@ use rustc_serialize::{Decodable, Decoder, Encodable, Encoder};
 use sodiumoxide::crypto;
 use helper::*;
 use common::NameType;
+use traits::RoutingTrait;
 
 
 /// Mpid
@@ -55,6 +56,26 @@ pub struct Mpid {
 public_keys: (crypto::sign::PublicKey, crypto::asymmetricbox::PublicKey),
 secret_keys: (crypto::sign::SecretKey, crypto::asymmetricbox::SecretKey),
 name: NameType
+}
+
+impl RoutingTrait for Mpid {
+    fn get_name(&self) -> NameType {
+        let sign_arr = &(&self.public_keys.0).0;
+        let asym_arr = &(&self.public_keys.1).0;
+
+        let mut arr_combined = [0u8; 64 * 2];
+
+        for i in 0..sign_arr.len() {
+            arr_combined[i] = sign_arr[i];
+        }
+        for i in 0..asym_arr.len() {
+            arr_combined[64 + i] = asym_arr[i];
+        }
+
+        let digest = crypto::hash::sha512::hash(&arr_combined);
+
+        NameType(digest.0)
+    }
 }
 
 impl Mpid {
@@ -126,9 +147,9 @@ fn serialisation_mpid() {
 	let &NameType(name_before) = obj_before.get_name();
 	let &NameType(name_after) = obj_after.get_name();
 
-																																																																					 assert!(compare_arr_u8_64(&name_before, &name_after));
+																																																																					 assert!(compare_u8_array(&name_before, &name_after));
 	assert_eq!(pub_sign_arr_before, pub_sign_arr_after);
 	assert_eq!(pub_asym_arr_before, pub_asym_arr_after);
-	assert!(compare_arr_u8_64(&sec_sign_arr_before, &sec_sign_arr_after));
+	assert!(compare_u8_array(&sec_sign_arr_before, &sec_sign_arr_after));
 	assert_eq!(sec_asym_arr_before, sec_asym_arr_after);
 }
